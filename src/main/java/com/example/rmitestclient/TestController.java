@@ -121,7 +121,7 @@ public class TestController {
                 String target = plugin.getTargets().get(0).getName();
                 builder.configureTransitions().withExternal()
                         .source(source).target(target)
-                        .event(plugin.getEvent()).action((Action<String, String>) context.getBean(plugin.getActions().get(0)));
+                        .event(plugin.getEvent()).action(getAction(plugin.getActions().get(0)));
 
             } else if (plugin.getSources().size() == 1 && plugin.getTargets().size() > 1) {
                 String source = plugin.getSources().get(0).getName();
@@ -139,6 +139,34 @@ public class TestController {
             }
         }
         return builder;
+    }
+
+    public Guard<String, String> getGuard(String guard) {
+        // remote:guard  or local:guard
+        String[] temp = guard.split(":");
+        String loadType = temp[0];
+        String guardName = temp[1];
+        if (loadType.equals("local")) {
+            return (Guard<String, String>) context.getBean(guardName);
+        } else {
+            return remoteBeanService.loadGuard(guardName);
+        }
+    }
+
+    public Action<String, String> getAction(String action) {
+        // remote:guard  or local:guard
+        String[] temp = action.split(":");
+        String loadType = temp[0];
+        String actionName = temp[1];
+        if (loadType.equals("local")) {
+            return (Action<String, String>) context.getBean(actionName);
+        } else {
+            return remoteBeanService.loadAction(actionName);
+//            RemoteAction1 remoteAction1 = new RemoteAction1();
+//            byte[] data = JSON.toJSONBytes(remoteAction1);
+//            Action<String, String> action1 = JSON.parseObject(data, Action.class);
+//            return action1;
+        }
     }
 
     @GetMapping("/plugin")
@@ -168,21 +196,21 @@ public class TestController {
         plugin4.setSources(Arrays.asList(state2));
         plugin4.setTargets(Arrays.asList(state3));
         plugin4.setEvent("E2");
-        plugin4.setActions(Arrays.asList("test2Action"));
+        plugin4.setActions(Arrays.asList("local:test2Action"));
 //        plugin4.setGuards(Arrays.asList("test1Guard", "test2Guard", "test3Guard"));
 
         Plugin plugin1 = new Plugin();
         plugin1.setSources(Arrays.asList(state3));
         plugin1.setTargets(Arrays.asList(state1));
         plugin1.setEvent("E1");
-        plugin1.setActions(Arrays.asList("test1Action"));
+        plugin1.setActions(Arrays.asList("remote:remoteAction1"));
         plugin1.setChildren(Arrays.asList(plugin4));
 
         Plugin plugin = new Plugin();
         plugin.setSources(Arrays.asList(state1));
         plugin.setTargets(Arrays.asList(state2));
         plugin.setEvent("E");
-        plugin.setActions(Arrays.asList("testAction"));
+        plugin.setActions(Arrays.asList("local:testAction"));
         plugin.setChildren(Arrays.asList(plugin1));
 
         byte[] data = JSON.toJSONBytes(plugin);
@@ -226,6 +254,8 @@ public class TestController {
         Set<String> stateSets = new HashSet<String>();
         stateSets.add("S3");
         stateSets.add("S4");
+        builder.configureTransitions().withExternal()
+                .source("S1").target("S2").action(new CustomAction("http://12306.com/test"));
 //        builder2.configureStates().withStates().states(stateSets).initial("S1");
 //        builder2.configureTransitions().withExternal()
 //                .source("S2")
